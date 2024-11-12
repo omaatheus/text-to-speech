@@ -1,48 +1,73 @@
-import { View, StyleSheet, Button, TextInput, TouchableOpacity, Text } from 'react-native';
+import { View, StyleSheet, Button, TextInput, TouchableOpacity, Text, Platform } from 'react-native';
 import * as Speech from 'expo-speech';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
 
 export default function Home() {
   const [texto, setTexto] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [expoPushToken, setExpoPushToken] = useState('');
+  const notificationListener = useRef();
+  const responseListener = useRef();
 
-  // Função para listar vozes disponíveis
+  useEffect(() => {
+    registerForPushNotificationsAsync().then(token => token && setExpoPushToken(token));
+
+    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+      console.log(notification);
+    });
+
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      console.log(response);
+    });
+
+    return () => {
+      notificationListener.current &&
+        Notifications.removeNotificationSubscription(notificationListener.current);
+      responseListener.current &&
+        Notifications.removeNotificationSubscription(responseListener.current);
+    };
+  }, []);
+
   const listAllVoiceOptions = async () => {
     let voices = await Speech.getAvailableVoicesAsync();
     console.log(voices);
   };
 
-  // Função para iniciar a fala
-  const speak = () => {
+  const speak = async () => {
     listAllVoiceOptions();
     const thingToSay = texto;
     const options = {
       language: 'pt-BR',
-      onDone: () => { // Callback para quando o áudio terminar
-        setIsSpeaking(false); // Atualiza o estado para permitir o botão novamente
+      onDone: async () => {
+        setIsSpeaking(false);
+        await schedulePushNotification();
       },
     };
     Speech.speak(thingToSay, options);
     setIsSpeaking(true);
   };
 
-  // Função para pausar a fala
   const pauseSpeech = () => {
     Speech.stop();
     setIsSpeaking(false);
-  };
-
-  // Função para retroceder (parar e reiniciar a fala)
-  const rewindSpeech = () => {
-    Speech.stop(); // Para a fala atual
-    speak(); // Reinicia a fala do início
   };
 
   return (
     <View style={styles.container}>
       <TextInput
         style={styles.input}
-        placeholder="Insira seu texto aqui (Máximo 500 caracacteres)"
+        placeholder="Insira seu texto aqui (Máximo 500 caracteres)"
         onChangeText={setTexto}
         value={texto}
         maxLength={500}
@@ -52,7 +77,7 @@ export default function Home() {
       <TouchableOpacity
         style={[styles.button, isSpeaking && styles.buttonDisabled]}
         onPress={speak}
-        disabled={isSpeaking} // Desabilita o botão enquanto estiver falando
+        disabled={isSpeaking}
       >
         <Text style={styles.buttonText}>Escute!</Text>
       </TouchableOpacity>
@@ -60,7 +85,7 @@ export default function Home() {
       <TouchableOpacity
         style={styles.button}
         onPress={pauseSpeech}
-        disabled={!isSpeaking} // Desabilita o botão se não estiver falando
+        disabled={!isSpeaking}
       >
         <Text style={styles.buttonText}>Pausar</Text>
       </TouchableOpacity>
@@ -85,7 +110,7 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 20,
     fontSize: 16,
-    textAlignVertical: 'top', // Faz o texto começar no topo do input
+    textAlignVertical: 'top',
   },
   button: {
     backgroundColor: '#4CAF50',
@@ -106,3 +131,58 @@ const styles = StyleSheet.create({
     backgroundColor: '#9E9E9E',
   },
 });
+
+async function schedulePushNotification() {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Áudio foi gerado',
+      body: 'O texto foi convertido em áudio com sucesso!',
+    },
+    trigger: null,
+  });
+}
+
+async function registerForPushNotificationsAsync() {
+  let token;
+
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'default',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF231F7C',
+    });
+  }
+
+  if (Device.isDevice) {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') {
+      alert('Failed to get push token for push notification!');
+      return;
+    }
+
+    try {
+      const projectId =
+        Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+      if (!projectId) {
+        throw new Error('Project ID not found');
+      }
+      token = (
+        await Notifications.getExpoPushTokenAsync({
+          projectId,
+        })
+      ).data;
+    } catch (e) {
+      token = `${e}`;
+    }
+  } else {
+    alert('Must use physical device for Push Notifications');
+  }
+
+  return token;
+}
