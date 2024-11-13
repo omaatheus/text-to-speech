@@ -1,8 +1,6 @@
 {
   "build": {
     "production": {
-      "workflow": "managed",
-      "image": "ubuntu-latest",
       "android": {
         "buildType": "apk"
       }
