@@ -1,10 +1,11 @@
 {
-    "build": {
-      "production": {
-        "android": {
-          "buildType": "apk"
-        }
+  "build": {
+    "production": {
+      "workflow": "managed",
+      "image": "ubuntu-latest",
+      "android": {
+        "buildType": "apk"
       }
     }
   }
-  
+}
