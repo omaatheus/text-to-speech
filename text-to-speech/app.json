@@ -18,10 +18,17 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.omaatheus.texttospeech"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "3338539a-43f4-4834-bc0c-3b3822b38b4a"
+      }
+    },
+    "owner": "omaatheus"
   }
 }
