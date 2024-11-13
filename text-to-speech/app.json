@@ -29,6 +29,12 @@
         "projectId": "3338539a-43f4-4834-bc0c-3b3822b38b4a"
       }
     },
-    "owner": "omaatheus"
+    "owner": "omaatheus",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/3338539a-43f4-4834-bc0c-3b3822b38b4a"
+    }
   }
 }
